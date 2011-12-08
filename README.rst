@@ -18,6 +18,7 @@ To use googleappsauth, configuration in `settings.py` should look like this::
     GOOGLE_APPS_CONSUMER_SECRET = '*sekret*'
     # domain where your application is running
     GOOGLE_OPENID_REALM = 'http://*.hudora.biz/'
+	GOOGLE_OPENID_ENDPOINT = 'https://www.google.com/accounts/o8/ud'
 
 If you want to choose from a list of Google apps domains on a login-by-login basis
 you can configure an array of apps domains::
