@@ -54,6 +54,9 @@ class GoogleAuthMiddleware(object):
         if request.user.is_authenticated():
             return
         
+        print "path:: %s" % path
+        print "in0:: %s?%s" % (path, request.META.get('QUERY_STRING', ''))
+        
         # nein, wir haben noch keinen User. Also den Login ueber
         # Google Apps OpenID/OAuth starten und Parameter in Session speichern
         return googleappsauth.views.login(request,

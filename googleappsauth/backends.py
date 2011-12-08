@@ -11,7 +11,7 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib.admin.models import LogEntry, ADDITION
 from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth.models import User, SiteProfileNotAvailable
+from django.contrib.auth.models import User, Group, SiteProfileNotAvailable
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 import re
@@ -19,11 +19,12 @@ import re
 
 class GoogleAuthBackend(ModelBackend):
     def authenticate(self, identifier=None, attributes=None):
-        # da wir von Google keinen Benutzernamen bekommen versuchen wir zuerst, 
-        # den ersten Teil der Emailadresse zu nehmen. Wenn wir keine Email haben 
-        # dann bleibt nur der OpenID-Identifier als Benutzername
+        # Because we get a user name of Google we first try
+        # To accept the first part of the email address. If we do not have email
+        # Then only remains of the OpenID identifier as the username
         email = attributes.get('email', '')
-        username = attributes.get('email', identifier).split('@')[0].replace('.', '')
+        username = email
+        
         users = User.objects.filter(username=username)
         if len(users) > 1:
             raise RuntimeError("duplicate user %s" % email)
@@ -37,6 +38,7 @@ class GoogleAuthBackend(ModelBackend):
             LogEntry.objects.log_action(1, ContentType.objects.get_for_model(User).id,
                                     user.id, unicode(User),
                                     ADDITION, "durch googleauth automatisch erzeugt")
+             
         else:
             user = users[0]
         # jetzt aktualisieren wir die Attribute des Benutzers mit den neuesten 
@@ -62,6 +64,21 @@ class GoogleAuthBackend(ModelBackend):
         
         # das war's, Benutzer zurueckliefern, damit ist Login geglueckt
         return user
+
+    def set_group(self, username):
+        domain = email.split('@')[1]
+
+        try:
+            group = Group.object.get(name = domain)
+        except DoesNotExist:
+            group = Group(name = domain)
+            group.save()
+        
+        users = User.objects.filter(username=username)
+        users.groups.add(group)
+            
+                
+        
 
     def get_user(self, user_id):
         try:

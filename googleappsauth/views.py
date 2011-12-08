@@ -17,7 +17,6 @@ from django.shortcuts import render_to_response
 import django.contrib.auth as djauth
 import googleappsauth.openid
 
-
 _google_apps_domain = getattr(settings, 'GOOGLE_APPS_DOMAIN', None)
 _google_openid_endpoint = getattr(settings, 'GOOGLE_OPENID_ENDPOINT', None)
 _google_openid_realm = getattr(settings, 'GOOGLE_OPENID_REALM', None)
@@ -27,19 +26,23 @@ _google_api_scope = getattr(settings, 'GOOGLE_API_SCOPE', None)
 
 _login_url = getattr(settings, 'LOGIN_URL', None)
 
-
 def login(request, redirect_field_name=REDIRECT_FIELD_NAME, redirect_url=None):
-    # wenn wir ueber einen Post-Request in die Method gekommen sind gehen 
-    # wir davon aus, das der Benutzer vorher eine Domain fuer den Login 
-    # ausgewaehlt hat. Ansonsten ist's ein Fehler.
+    login_domain = None
+    # If we go over a post-request came in the Method
+    # We assume that the user previously for domain login
+    # Has selected. Otherwise, s is a mistake.
     if request.method == 'POST':
-        callback_url = request.session['callback_url']
         login_domain = request.POST.get('domain')
         if not login_domain:
             raise Http404('invalid or missing login domain!')
 
-    # ansonsten ist das ein Login-Versuch, also bestimmen wir zuerst, wohin 
-    # nach erfolgtem Login in die App umgeleitet werden soll
+    # Otherwise it's a login attempt, so we first determine where
+    # After a successful login will be redirected to the app
+    # If we have more than one configured Apps domain and yet
+    # Was chosen not out of the log-domain POST request then
+    # We now show first a selection box for the
+    # Desired login to domain.
+
     else:
         login_domain = None
         if not redirect_url:
@@ -61,23 +64,35 @@ def login(request, redirect_field_name=REDIRECT_FIELD_NAME, redirect_url=None):
     if not login_domain:
         if type(_google_apps_domain) == types.ListType:
             return render_to_response('googleappsauth/domains.html', 
-                                      { 'login_url': _login_url, 'domains': _google_apps_domain })
+                                      { 'login_url': request.get_full_path(), 'domains': _google_apps_domain})
         else:
             login_domain = _google_apps_domain 
 
-    # jetzt haben wir ganz sicher eine Domain, ueber die wir uns einloggen
-    # sollen. Um die Kompatibilitaet mit alten Versionen (in denen der Settings-
-    # Parameter 'GOOGLE_OPENID_ENDPOINT' bereits die vollstaendige Endpoint-URL 
-    # inkl. Login-Domain enthalten hat) nicht zu brechen fangen wir hier moegliche 
-    # Typfehler (eben wenn der Parameter kein passendes '%s' enthaelt) ab.
+    if not redirect_url:
+        redirect_url = request.REQUEST.get(redirect_field_name)
+        if not redirect_url:
+            redirect_url =  getattr(settings, 'LOGIN_REDIRECT_URL', '/')
+        
+    request.session['redirect_url'] = redirect_url
+
+    # Now we build us the URL for the callback together, under
+    # We want to be called from Google after login
+    callback_url = request.build_absolute_uri(reverse(callback))
+    request.session['callback_url'] = callback_url
+
+    # Now we have certainly a domain over which we logTo 
+    #. To provide compatibility with older versions (where the Settings
+    # Parameters 'GOOGLE_OPENID_ENDPOINT' already full endpoint URL
+    # Include has domain including login) does not break, we catch are possible
+    # Type of error (if the parameter is not precisely matching '% s' contains) from.
     openid_endpoint = _google_openid_endpoint
     try:
         openid_endpoint = openid_endpoint % login_domain
     except TypeError:
         pass
 
-    # und schliesslich konstruieren wir darauf die Google-OpenID-
-    # Endpoint-URL, auf die wir dann den Benutzer umleiten
+    # And finally we build out the Google OpenID
+    # Endpoint URL to which we then redirect the user
     url = googleappsauth.openid.build_login_url(
             openid_endpoint, _google_openid_realm,
             callback_url, _oauth_consumer_key, _google_api_scope)
@@ -85,34 +100,42 @@ def login(request, redirect_field_name=REDIRECT_FIELD_NAME, redirect_url=None):
 
 
 def callback(request):
-    # haben wir einen erfolgreichen Login? Wenn nicht gehen wir
-    # sofort zurueck, ohne einen Benutzer einzuloggen
+    # We have a successful login? If we do not go
+    # Back immediately, without a user login
+    print 'in callback'
     callback_url = request.session.get('callback_url', '/')
     identifier = googleappsauth.openid.parse_login_response(request, callback_url)
     if not identifier:
         # TODO: was ist hier los?
         return HttpResponseRedirect('/')
     
-    # jetzt holen wir uns die restlichen Daten aus dem Login
+    # Now we get the remaining data from the login
     attributes = {
         'email': googleappsauth.openid.get_email(request),
         'language': googleappsauth.openid.get_language(request),
         'firstname': googleappsauth.openid.get_firstname(request),
         'lastname': googleappsauth.openid.get_lastname(request)}
-    
-    # wenn wir ein OAuth request token bekommen haben machen wir
-    # daraus jetzt noch flott ein access token
+
+
+    # If we do get an OAuth request token we
+    # Now it still afloat an access token
     request_token = googleappsauth.openid.get_oauth_request_token(request)
     #if request_token:
     #    attributes['access_token'] = None
     #    raise Exception('access token handling not yet implemented!')
     
-    # Usernames are based on E-Mail Addresses which are unique.
-    username = attributes.get('email', identifier).split('@')[0].replace('.', '')
+    # Finally, we report the user and its attributes on
+    # Of Django auth system, then back to the actual app
+    redirect_url = request.session['redirect_url']
     
-    # schliesslich melden wir den Benutzer mit seinen Attributen am
-    # Auth-System von Django an, dann zurueck zur eigentlichen App
-    user = djauth.authenticate(identifier=username, attributes=attributes)
+    domain = _is_valid_domain(googleappsauth.openid.get_email(request))
+    if domain:
+        request.session['loged_in_domain'] = domain
+    else:
+        _clear_session_data()
+        return HttpResponseRedirect(redirect_url)
+       
+    user = djauth.authenticate(attributes=attributes)
     if not user:
         # For some reason I do not fully understand we get back a "None"" coasionalty - retry.
         user = djauth.authenticate(identifier=username, attributes=attributes)
@@ -120,11 +143,22 @@ def callback(request):
             # die Authentifizierung ist gescheitert
             raise RuntimeError("Authentifizierungsproblem: %s|%s|%s" % (username, identifier, attributes))
     djauth.login(request, user)
-    redirect_url = request.session['redirect_url']
+
     # del request.session['redirect_url']
     return HttpResponseRedirect(redirect_url)
-
 
 def logout(request):
     djauth.logout(request)
     return HttpResponseRedirect('https://www.google.com/a/%s/Logout' % _google_apps_domain)
+
+def _clear_session_data():
+    del request.session['redirect_url']
+    del request.session['callback_url']
+    del request.session['redirect_url']
+    
+def _is_valid_domain(email):
+    domain = email.split("@")[1]
+    if domain in _google_apps_domain:
+        return domain
+    else:
+        return False
