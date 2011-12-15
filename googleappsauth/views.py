@@ -24,6 +24,7 @@ _oauth_consumer_key = getattr(settings, 'GOOGLE_APPS_CONSUMER_KEY', None)
 _oauth_consumer_secret = getattr(settings, 'GOOGLE_APPS_CONSUMER_SECRET', None)
 _google_api_scope = getattr(settings, 'GOOGLE_API_SCOPE', None)
 
+
 _login_url = getattr(settings, 'LOGIN_URL', None)
 
 def login(request, redirect_field_name=REDIRECT_FIELD_NAME, redirect_url=None):
@@ -102,7 +103,6 @@ def login(request, redirect_field_name=REDIRECT_FIELD_NAME, redirect_url=None):
 def callback(request):
     # We have a successful login? If we do not go
     # Back immediately, without a user login
-    print 'in callback'
     callback_url = request.session.get('callback_url', '/')
     identifier = googleappsauth.openid.parse_login_response(request, callback_url)
     if not identifier:
@@ -129,36 +129,38 @@ def callback(request):
     redirect_url = request.session['redirect_url']
     
     domain = _is_valid_domain(googleappsauth.openid.get_email(request))
-    if domain:
-        request.session['loged_in_domain'] = domain
-    else:
-        _clear_session_data()
-        return HttpResponseRedirect(redirect_url)
-       
-    user = djauth.authenticate(attributes=attributes)
-    if not user:
-        # For some reason I do not fully understand we get back a "None"" coasionalty - retry.
-        user = djauth.authenticate(identifier=username, attributes=attributes)
-        if not user:
-            # die Authentifizierung ist gescheitert
-            raise RuntimeError("Authentifizierungsproblem: %s|%s|%s" % (username, identifier, attributes))
-    djauth.login(request, user)
 
-    # del request.session['redirect_url']
-    return HttpResponseRedirect(redirect_url)
+    if domain:
+        
+        user = djauth.authenticate(attributes=attributes)
+        if not user:
+            # For some reason I do not fully understand we get back a "None"" coasionalty - retry.
+            user = djauth.authenticate(identifier=username, attributes=attributes)
+            if not user:
+                # die Authentifizierung ist gescheitert
+                raise RuntimeError("Authentifizierungsproblem: %s|%s|%s" % (username, identifier, attributes))
+                
+        djauth.login(request, user)
+        request.session.set_expiry(300)
+        return HttpResponseRedirect(redirect_url)
+    
+    else:
+        return HttpResponseRedirect("/error-googleappsauth")
+    
 
 def logout(request):
     djauth.logout(request)
+    del request.session['last_touch']
+    del request.session['redirect_url']
     return HttpResponseRedirect('https://www.google.com/a/%s/Logout' % _google_apps_domain)
 
-def _clear_session_data():
-    del request.session['redirect_url']
-    del request.session['callback_url']
-    del request.session['redirect_url']
-    
+def login_error(request):
+    return render_to_response('googleappsauth/login_error.html')
+
 def _is_valid_domain(email):
+    print email
     domain = email.split("@")[1]
     if domain in _google_apps_domain:
-        return domain
+        return True
     else:
         return False

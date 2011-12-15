@@ -6,6 +6,7 @@ googleauth/middleware.py - force Google Apps Authentication for the whole site.
 Created by Axel Schlüter on 2009-12
 Copyright (c) 2009, 2010 HUDORA GmbH. All rights reserved.
 """
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import User, SiteProfileNotAvailable
@@ -52,10 +53,20 @@ class GoogleAuthMiddleware(object):
         # ok, die Seite muss auth'd werden. Haben wir vielleicht
         # schon einen geauth'd User in der aktuellen Session? 
         if request.user.is_authenticated():
+            try:
+                print timedelta( 0, settings.AUTO_LOGOUT_DELAY * 60, 0)
+                print datetime.now() - request.session['last_touch']
+                if datetime.now() - request.session['last_touch'] > timedelta( 0, settings.AUTO_LOGOUT_DELAY * 60, 0):
+                    print 'Time out!'
+                    djauth.logout(request)
+                    del request.session['last_touch']
+                    return HttpResponseRedirect(redirect_url)
+            except KeyError:
+                pass
+
+            request.session['last_touch'] = datetime.now()
+
             return
-        
-        print "path:: %s" % path
-        print "in0:: %s?%s" % (path, request.META.get('QUERY_STRING', ''))
         
         # nein, wir haben noch keinen User. Also den Login ueber
         # Google Apps OpenID/OAuth starten und Parameter in Session speichern
