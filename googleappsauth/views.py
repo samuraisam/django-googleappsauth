@@ -52,6 +52,7 @@ def login(request, redirect_field_name=REDIRECT_FIELD_NAME, redirect_url=None):
         # dem wir von Google aufgerufen werden moechten nach dem Login
         callback_url = request.build_absolute_uri(reverse(callback))
         request.session['callback_url'] = callback_url
+        
 
     # wenn wir mehr als eine Apps-Domain konfiguriert haben und noch 
     # keine Login-Domain aus dem POST-Request ausgewaehlt wurde dann
