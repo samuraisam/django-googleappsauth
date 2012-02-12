@@ -46,7 +46,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'googleappsauth.middleware.GoogleAuthMiddleware', #Google Apps Auth Testing
+    #'googleappsauth.middleware.GoogleAuthMiddleware', #Google Apps Auth Testing
 )
 
 ROOT_URLCONF = 'example.urls'
@@ -72,5 +72,5 @@ GOOGLE_APPS_CONSUMER_KEY = 'example.com'
 GOOGLE_APPS_CONSUMER_SECRET = '*sekret*'
 GOOGLE_OPENID_REALM = 'http://localhost:8000/'
 GOOGLE_OPENID_ENDPOINT = 'https://www.google.com/a/%s/o8/ud?be=o8' % GOOGLE_APPS_DOMAIN
-AUTHENTICATION_BACKENDS = ('googleappsauth.backends.GoogleAuthBackend',)
+AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend','googleappsauth.backends.GoogleAuthBackend',)
 AUTH_PROTECTED_AREAS = ['/admin']
