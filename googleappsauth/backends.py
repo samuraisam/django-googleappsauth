@@ -16,7 +16,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 import re
 
-from googleappsauth.utils import _apps_domain
+# from googleappsauth.utils import _apps_domain
 
 
 class GoogleAuthBackend(ModelBackend):
@@ -32,8 +32,6 @@ class GoogleAuthBackend(ModelBackend):
             raise RuntimeError("duplicate user %s" % email)
         elif len(users) < 1:
             # only allow users under our domain
-            if not self._in_domain(email):
-                return None
 
             # for some reason it seems this code branch is never executed ?!?
             user = User.objects.create(email=email, username=username)
@@ -68,7 +66,6 @@ class GoogleAuthBackend(ModelBackend):
         except SiteProfileNotAvailable:
             pass
         
-        # das war's, Benutzer zurueckliefern, damit ist Login geglueckt
         return user
 
     def set_group(self, username):
@@ -82,21 +79,12 @@ class GoogleAuthBackend(ModelBackend):
         
         users = User.objects.filter(username=username)
         users.groups.add(group)
-            
-                
-        
 
     def get_user(self, user_id):
         try:
             return User.objects.get(pk=user_id)
         except User.DoesNotExist:
             return None
-
-    def _in_domain(self, email):
-        email_parts = email.split("@")
-        domain = email_parts[1]
-
-        return domain in _apps_domain
 
     def _get_or_create_user_profile(self, user):
         profile_module = getattr(settings, 'AUTH_PROFILE_MODULE', False)

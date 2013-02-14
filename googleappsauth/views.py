@@ -138,7 +138,7 @@ def callback(request):
             user = djauth.authenticate(identifier=username, attributes=attributes)
             if not user:
                 # die Authentifizierung ist gescheitert
-                raise RuntimeError("Authentifizierungsproblem: %s|%s|%s" % (username, identifier, attributes))
+                raise RuntimeError("Authentication Error: %s|%s|%s" % (username, identifier, attributes))
                 
         djauth.login(request, user)
         request.session.set_expiry(300)
@@ -158,7 +158,7 @@ def login_error(request):
     return render_to_response('googleappsauth/login_error.html')
 
 def _is_valid_domain(email):
-    print email
+    print email, _google_apps_domain
     domain = email.split("@")[1]
     if domain in _google_apps_domain:
         return True

@@ -15,6 +15,8 @@ from django.core.urlresolvers import reverse
 import django.contrib.auth as djauth
 import googleappsauth.views
 
+from googleappsauth.utils import _auto_logout_delay
+
 
 class GoogleAuthMiddleware(object):
     """Force Google Apps Authentication for the whole site.
@@ -54,10 +56,9 @@ class GoogleAuthMiddleware(object):
         # schon einen geauth'd User in der aktuellen Session? 
         if request.user.is_authenticated():
             try:
-                print timedelta( 0, settings.AUTO_LOGOUT_DELAY * 60, 0)
+                print timedelta( 0, _auto_logout_delay * 60, 0)
                 print datetime.now() - request.session['last_touch']
-                if datetime.now() - request.session['last_touch'] > timedelta( 0, settings.AUTO_LOGOUT_DELAY * 60, 0):
-                    print 'Time out!'
+                if datetime.now() - request.session['last_touch'] > timedelta( 0, _auto_logout_delay * 60, 0):
                     djauth.logout(request)
                     del request.session['last_touch']
                     return HttpResponseRedirect(redirect_url)

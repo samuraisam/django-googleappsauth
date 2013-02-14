@@ -12,6 +12,7 @@ import httplib
 import random
 from django.conf import settings
 
+_auto_logout_delay = getattr(settings, 'AUTO_LOGOUT_DELAY', 72 * 60)
 
 """ Google OAuth Key und Secret, wird im Backend fuer hudora.de konfiguriert """
 _apps_domain = getattr(settings, 'GOOGLE_APPS_DOMAIN', None)

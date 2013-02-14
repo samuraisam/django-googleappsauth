@@ -2,13 +2,13 @@ import codecs
 from setuptools import setup, find_packages
 
 setup(name='googleappsauth',
-      maintainer='Maximillian Dornseif',
-      maintainer_email='md@hudora.de',
+      maintainer='Sam Johnson',
+      maintainer_email='me@samdjohnson.com',
       version='1.1',
       description='googleappsauth authenticates Django Users against a Google Apps Domain',
       long_description=codecs.open('README.rst', "r", "utf-8").read(),
       license='BSD',
-      url='http://github.com/hudora/django-googleappsauth#readme',
+      url='http://github.com/samdjohnson/django-googleappsauth#readme',
       classifiers=['Intended Audience :: Developers',
                    'Programming Language :: Python'],
       package_data={"googleappsauth": ["templates/googleappsauth/*.html",]},
