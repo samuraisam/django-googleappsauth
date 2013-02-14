@@ -16,7 +16,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 import re
 
-from utils import _apps_domain
+from googleappsauth.utils import _apps_domain
 
 
 class GoogleAuthBackend(ModelBackend):
